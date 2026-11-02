@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>輔警更表</title>
+<meta name="theme-color" content="#1f3a6e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="輔警更表">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one column on phone; on desktop, calendar left + day editor / pay schedule right. Ink-navy with a brass accent, like a duty roster. */
+:root{
+  --bg:#f3f4f7; --surface:#ffffff; --ink:#18213a; --muted:#5d6681; --line:#dcdfe8;
+  --navy:#1f3a6e; --navy-soft:#e3e9f5; --brass:#a8741a; --brass-soft:#f6ecd8; --warn:#b4432e;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10141f; --surface:#171c2b; --ink:#e7eaf2; --muted:#98a1ba; --line:#2a3147;
+  --navy:#8fb0ec; --navy-soft:#22314f; --brass:#e0ab52; --brass-soft:#3a2f1a; --warn:#f08a74; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10141f; --surface:#171c2b; --ink:#e7eaf2; --muted:#98a1ba; --line:#2a3147;
+  --navy:#8fb0ec; --navy-soft:#22314f; --brass:#e0ab52; --brass-soft:#3a2f1a; --warn:#f08a74; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{margin:0;font-size:1.6rem;font-weight:700;letter-spacing:.02em;text-wrap:balance}
+.eyebrow{font-size:.75rem;letter-spacing:.12em;color:var(--brass);font-weight:700}
+.nav{display:flex;align-items:center;gap:8px}
+.nav .m{font-weight:700;font-size:1.1rem;min-width:7.5em;text-align:center}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px}
+.btn:hover{border-color:var(--navy)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:var(--surface);font-weight:700}
+button:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{background:var(--surface);padding:14px 16px;display:grid;gap:2px;min-width:0}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.stat .v{font-size:1.45rem;font-weight:600}
+.stat .s{font-size:.8rem;color:var(--muted)}
+.stat.pay .v{color:var(--brass)}
+.main{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.panel h2{margin:0 0 10px;font-size:1rem}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dow{font-size:.75rem;color:var(--muted);text-align:center;padding:2px 0 6px;letter-spacing:.05em}
+.day{aspect-ratio:1/1.05;max-width:100%;border:1px solid transparent;border-radius:8px;background:transparent;padding:5px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;text-align:left;min-width:0}
+.day:hover{border-color:var(--line)}
+.day .d{font-size:.9rem;font-family:var(--f-num)}
+.day.out{visibility:hidden}
+.day.today .d{background:var(--ink);color:var(--surface);border-radius:4px;padding:0 4px}
+.day.sel{border-color:var(--brass);box-shadow:inset 0 0 0 1px var(--brass)}
+.day .h{font-family:var(--f-num);font-size:.72rem;line-height:1.2;border-radius:4px;padding:1px 5px;white-space:nowrap;max-width:100%;overflow:hidden}
+.day.confirmed{background:var(--navy-soft)}
+.day.confirmed .h{background:var(--navy);color:var(--surface)}
+.day.reported .h{border:1px dashed var(--navy);color:var(--navy)}
+.day.tentative .h{border:1px dotted var(--brass);color:var(--brass)}
+.seg.four{grid-template-columns:repeat(4,1fr)}
+.day.cancelled .h{border:1px solid var(--line);color:var(--muted);text-decoration:line-through}
+.clear{margin-top:10px;background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;font-size:.8rem}
+.clear:hover{color:var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:.8rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:10px;border-radius:3px;display:inline-block}
+.sw.tentative{border:1px dotted var(--brass)} .sw.confirmed{background:var(--navy)} .sw.reported{border:1px dashed var(--navy)} .sw.cancelled{border:1px solid var(--muted);background:linear-gradient(to bottom right,transparent 45%,var(--muted) 45%,var(--muted) 55%,transparent 55%)}
+.side{display:grid;gap:18px;min-width:0}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:8px 4px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--navy);color:var(--surface);font-weight:700}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+label{display:grid;gap:4px;font-size:.8rem;color:var(--muted)}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%;min-width:0}
+.full{grid-column:1/-1}
+.calc{margin-top:12px;font-size:.9rem;color:var(--muted)}
+.calc b{color:var(--ink)}
+.empty{color:var(--muted);font-size:.9rem;margin:0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{font-weight:500;color:var(--muted);text-align:left;font-size:.75rem;padding:4px 6px;border-bottom:1px solid var(--line)}
+td{padding:8px 6px;border-bottom:1px solid var(--line)}
+td.r,th.r{text-align:right}
+tr.now td{background:var(--brass-soft)}
+.tag{font-size:.7rem;padding:1px 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.ok{border-color:var(--navy);color:var(--navy)}
+.note{font-size:.78rem;color:var(--muted);margin:8px 0 0}
+.status{font-size:.8rem;color:var(--muted)}
+.status.err{color:var(--warn)}
+details summary{cursor:pointer;font-weight:700}
+select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%;min-width:0}
+select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.day .h .c{font-family:var(--f-body);margin-left:2px}
+.ov{display:grid;gap:14px}
+.ov-item{display:grid;gap:5px}
+.ov-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ov-name{font-weight:700}
+.ov-fig{font-size:.85rem;color:var(--muted)}
+.ov-fig b{color:var(--ink)}
+.bar{position:relative;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:999px}
+.bar .bp{background:var(--navy);opacity:.35}
+.bar .bd{background:var(--navy)}
+.ov-item.met .bar .bd{background:var(--brass)}
+.ov-msg{font-size:.78rem;color:var(--muted)}
+.ov-msg.short{color:var(--warn)}
+.ov-msg.ok{color:var(--brass);font-weight:700}
+.cats{display:grid;gap:8px;margin-top:12px}
+.cat-row,.type-row{display:grid;gap:8px;align-items:end;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.type-row{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.5fr) auto}
+.cat-row{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto}
+.x{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px;color:var(--muted)}
+.x:hover{color:var(--warn);border-color:var(--warn)}
+.x:disabled{opacity:.4;cursor:not-allowed}
+@media (max-width:1100px){.type-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.type-row .nm,.type-row .ct{grid-column:1/-1}.type-row .x{grid-column:1/-1;justify-self:start}}
+.sub{font-size:.85rem;font-weight:700;margin:16px 0 0}
+@media (max-width:820px){.main{grid-template-columns:minmax(0,1fr)}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.day{padding:3px}.day .h{font-size:.62rem;padding:0 3px}.stat .v{font-size:1.2rem}}
+@media (prefers-reduced-motion:no-preference){.day{transition:background .12s,border-color .12s}}
+
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;min-height:100vh}
+[hidden]{display:none!important}
+.gate{min-height:80vh;display:grid;place-items:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.gate-card{display:grid;gap:14px;justify-items:start;max-width:360px}
+.gate-card p{margin:0;color:var(--muted)}
+.acct{display:flex;gap:8px;align-items:center;font-size:.78rem;color:var(--muted);flex-wrap:wrap}
+.acct button{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;font-size:.78rem}
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="eyebrow">AUXILIARY POLICE · 兼職更表</div>
+    <h1>輔警更表</h1>
+    <p id="gateMsg">用你個 Google 帳戶登入，就可以喺電話同電腦睇同一份更表。</p>
+    <button class="btn primary" id="signIn" type="button">用 Google 登入</button>
+  </div>
+</div>
+
+
+<div class="wrap" id="app" hidden>
+  <header>
+    <div>
+      <div class="eyebrow">AUXILIARY POLICE · 兼職更表</div>
+      <h1>輔警更表</h1>
+      <div class="status" id="status">連接緊資料庫…</div>
+      <div class="acct"><span id="who"></span><button id="signOut" type="button">登出</button></div>
+    </div>
+    <div class="nav">
+      <button class="btn" id="prev" aria-label="上一個月">‹</button>
+      <div class="m" id="mlabel"></div>
+      <button class="btn" id="next" aria-label="下一個月">›</button>
+      <button class="btn" id="todayBtn">今個月</button>
+    </div>
+  </header>
+
+  <section class="stats" aria-label="本月統計">
+    <div class="stat"><span class="k">確認有更</span><span class="v num" id="sDone">0 日</span><span class="s num" id="sDoneH">0 小時</span></div>
+    <div class="stat"><span class="k">已報更＋預計安排</span><span class="v num" id="sPlan">0 日</span><span class="s num" id="sPlanH">0 小時</span></div>
+    <div class="stat"><span class="k">本月更份收入（已確認）</span><span class="v num" id="sInc">$0</span><span class="s" id="sIncS">已返 $0</span></div>
+    <div class="stat pay"><span class="k" id="sPayK">本月出糧</span><span class="v num" id="sPay">$0</span><span class="s" id="sPayS"></span></div>
+  </section>
+
+  <div class="main">
+    <section class="panel" aria-label="月曆">
+      <div class="cal" id="cal"></div>
+      <div class="legend">
+        <span><i class="sw tentative"></i>預計安排</span>
+        <span><i class="sw reported"></i>已報更</span>
+        <span><i class="sw confirmed"></i>確認有更</span>
+        <span><i class="sw cancelled"></i>取消</span>
+      </div>
+    </section>
+
+    <div class="side">
+      <section class="panel" id="editor" aria-label="當日更份">
+        <h2 id="edTitle">揀一日</h2>
+        <p class="empty" id="edEmpty">撳月曆上面任何一日，就可以標記預計安排、已報更、確認有更或者取消。</p>
+        <div id="edBody" hidden>
+          <div class="seg four" role="group" aria-label="狀態">
+            <button id="stTent" aria-pressed="false">預計安排</button>
+            <button id="stRep" aria-pressed="false">已報更</button>
+            <button id="stConf" aria-pressed="false">確認有更</button>
+            <button id="stCanc" aria-pressed="false">取消</button>
+          </div>
+          <div class="row" id="timeRow">
+            <label>更份<select id="edType"></select></label>
+            <label>計入時數類別<select id="edCat"></select></label>
+            <label>上班<input type="time" id="edStart"></label>
+            <label>落班<input type="time" id="edEnd"></label>
+            <label class="full">備註<input type="text" id="edNote" placeholder="例如：大埔區、特別行動"></label>
+          </div>
+          <div class="calc" id="edCalc"></div>
+          <button class="clear" id="edClear" type="button" hidden>清除呢日嘅記錄</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="出糧預計">
+        <h2>出糧預計</h2>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>出糧月份</th><th>來自</th><th class="r">鐘數</th><th class="r">金額</th><th></th></tr></thead>
+            <tbody id="payBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="payNote"></p>
+      </section>
+
+      <section class="panel" aria-label="時數類別總覽">
+        <h2 id="ovTitle">全年時數類別</h2>
+        <div class="ov" id="ov"></div>
+        <p class="note">深色係確認有更嘅鐘數，淺色係連埋已報更同預計安排。達標只計確認有更；取消嘅更唔計。</p>
+      </section>
+
+      <section class="panel">
+        <details id="setDetails">
+          <summary>設定</summary>
+          <div class="row">
+            <label>時薪 (HK$)<input type="number" id="cfRate" min="0" step="0.1" inputmode="decimal"></label>
+            <label>隔幾多個月出糧<input type="number" id="cfLag" min="0" max="3" step="1"></label>
+          </div>
+          <p class="note">例如設「1」：10 月返嘅更，11 月先出糧。</p>
+
+          <p class="sub">更份</p>
+          <p class="note">每個更份有固定時間，同埋預設計入邊個時數類別。喺月曆揀咗更份，時間同類別會自動填好；排第一嘅更份係新加更時嘅預設。</p>
+          <div class="cats" id="typeList"></div>
+          <button class="btn" id="typeAdd" style="margin-top:10px">＋ 加更份</button>
+
+          <p class="sub">時數類別</p>
+          <p class="note">「每年要求」填 0 代表唔計最低鐘數，例如「唔計入必須時數」。</p>
+          <div class="cats" id="catList"></div>
+          <button class="btn" id="catAdd" style="margin-top:10px">＋ 加時數類別</button>
+        </details>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+</body>
+</html>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+</body>
+</html>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</body>
+</html>
+<script>
+(function(){
+  const DOW=["日","一","二","三","四","五","六"];
+  const $=id=>document.getElementById(id);
+  const pad=n=>String(n).padStart(2,"0");
+  const ymd=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  const mkey=(y,m)=>`${y}-${pad(m+1)}`;
+  const now=new Date(); const todayStr=ymd(now.getFullYear(),now.getMonth(),now.getDate());
+  let view={y:now.getFullYear(),m:now.getMonth()};
+  let shifts={};   // date -> {date,status,type,cat,start,end,hours,note}
+
+  const DEFAULT_CATS=[{id:"k1",name:"全年必須時數",req:72},{id:"k2",name:"唔計入必須時數",req:0}];
+  const DEFAULT_TYPES=[
+    {id:"t1",name:"中更",start:"15:00",end:"23:00",cat:"k1"},
+    {id:"t2",name:"早更",start:"07:00",end:"15:00",cat:"k1"},
+    {id:"t3",name:"夜更",start:"23:00",end:"07:00",cat:"k1"},
+    {id:"t4",name:"額外更",start:"15:00",end:"23:00",cat:"k2"}];
+  const clone=a=>a.map(o=>({...o}));
+  let cfg={rate:0,lag:1,cats:clone(DEFAULT_CATS),types:clone(DEFAULT_TYPES)};
+  const findCat=id=>cfg.cats.find(c=>c.id===id);
+  const findType=id=>cfg.types.find(t=>t.id===id);
+  let sel=null; let db=null; let dbOk=false;
+
+  function hoursOf(s,e){
+    if(!s||!e) return 0;
+    const [sh,sm]=s.split(":").map(Number),[eh,em]=e.split(":").map(Number);
+    let mins=(eh*60+em)-(sh*60+sm); if(mins<=0) mins+=1440;
+    return Math.round(mins/60*100)/100;
+  }
+  const money=v=>"$"+Math.round(v).toLocaleString("en-HK");
+  const hrs=v=>(Math.round(v*10)/10).toString();
+  const mlabel=(y,m)=>`${y}年${m+1}月`;
+  function addMonth(y,m,k){const d=new Date(y,m+k,1);return {y:d.getFullYear(),m:d.getMonth()};}
+
+  const ST=s=>s.status==="done"?"confirmed":s.status==="planned"?"reported":s.status;
+  function monthAgg(y,m){
+    const p=mkey(y,m)+"-"; let a={doneD:0,doneH:0,planD:0,planH:0,repD:0,tentD:0};
+    for(const k in shifts){ if(!k.startsWith(p)) continue; const s=shifts[k];
+      const st=ST(s); if(st==="confirmed"){a.doneD++;a.doneH+=s.hours||0;} else if(st==="reported"||st==="tentative"){a.planD++;a.planH+=s.hours||0; if(st==="reported")a.repD++; else a.tentD++;} }
+    return a;
+  }
+
+  function render(){
+    const {y,m}=view;
+    $("mlabel").textContent=mlabel(y,m);
+    const cal=$("cal"); cal.textContent="";
+    DOW.forEach(d=>{const e=document.createElement("div");e.className="dow";e.textContent=d;cal.appendChild(e);});
+    const first=new Date(y,m,1).getDay(); const days=new Date(y,m+1,0).getDate();
+    for(let i=0;i<first;i++){const e=document.createElement("div");e.className="day out";cal.appendChild(e);}
+    for(let d=1;d<=days;d++){
+      const ds=ymd(y,m,d); const s=shifts[ds];
+      const b=document.createElement("button"); b.className="day"; b.type="button";
+      if(ds===todayStr) b.classList.add("today");
+      if(ds===sel) b.classList.add("sel");
+      const n=document.createElement("span"); n.className="d"; n.textContent=d; b.appendChild(n);
+      let label=`${m+1}月${d}日`;
+      if(s){ const st=ST(s); b.classList.add(st);
+        const t=findType(s.type); const tn=t?t.name:"";
+        const h=document.createElement("span"); h.className="h"; h.textContent=hrs(s.hours)+"h";
+        if(tn){const c=document.createElement("span"); c.className="c"; c.textContent=tn.slice(0,1); h.appendChild(c);}
+        b.appendChild(h);
+        const cn=(findCat(s.cat)||{}).name||"未分類";
+        label+=({confirmed:"，確認有更",reported:"，已報更",tentative:"，預計安排",cancelled:"，已取消"}[st]||"")+`${tn?" "+tn:""} ${hrs(s.hours)} 小時，計入${cn}`; }
+      b.setAttribute("aria-label",label);
+      b.addEventListener("click",()=>{sel=ds;render();});
+      cal.appendChild(b);
+    }
+    const a=monthAgg(y,m); const r=cfg.rate||0;
+    $("sDone").textContent=a.doneD+" 日"; $("sDoneH").textContent=hrs(a.doneH)+" 小時";
+    $("sPlan").textContent=a.planD+" 日"; $("sPlanH").textContent=`已報 ${a.repD} · 預計 ${a.tentD} · ${hrs(a.planH)} 小時`;
+    $("sInc").textContent=money(a.doneH*r);
+    $("sIncS").textContent=(a.planH?`連已報及預計 ${money((a.doneH+a.planH)*r)}`:"冇未確認嘅更")+(r?"":" · 未設時薪");
+    const src=addMonth(y,m,-cfg.lag); const sa=monthAgg(src.y,src.m);
+    $("sPayK").textContent=`${m+1}月出糧（${src.m+1}月更）`;
+    $("sPay").textContent=money(sa.doneH*r);
+    $("sPayS").textContent=sa.planD?`仲有 ${sa.planD} 日未確認，全部確認就係 ${money((sa.doneH+sa.planH)*r)}`:(sa.doneD?`${sa.doneD} 日全部已確認`:"嗰個月冇更");
+    renderEditor(); renderPay(); renderOverview();
+  }
+
+  function fillSelect(el,items,value,emptyLabel){
+    if(document.activeElement===el) return;
+    el.textContent="";
+    if(!items.some(i=>i.id===value)){const o=document.createElement("option");o.value="";o.textContent=emptyLabel;el.appendChild(o);}
+    items.forEach(i=>{const o=document.createElement("option");o.value=i.id;o.textContent=i.name||"（未命名）";el.appendChild(o);});
+    el.value=items.some(i=>i.id===value)?value:"";
+  }
+
+  function renderEditor(){
+    if(!sel){ $("edBody").hidden=true; $("edEmpty").hidden=false; $("edTitle").textContent="揀一日"; return; }
+    const [Y,M,D]=sel.split("-").map(Number); const wd=DOW[new Date(Y,M-1,D).getDay()];
+    $("edTitle").textContent=`${M}月${D}日（星期${wd}）`;
+    $("edEmpty").hidden=true; $("edBody").hidden=false;
+    const s=shifts[sel]; const st=s?ST(s):"none";
+    $("stTent").setAttribute("aria-pressed",st==="tentative"); $("stRep").setAttribute("aria-pressed",st==="reported"); $("stConf").setAttribute("aria-pressed",st==="confirmed"); $("stCanc").setAttribute("aria-pressed",st==="cancelled");
+    $("timeRow").hidden=!s; $("edClear").hidden=!s;
+    if(s){
+      fillSelect($("edType"),cfg.types,s.type,"自訂");
+      fillSelect($("edCat"),cfg.cats,s.cat,"未分類");
+      if(document.activeElement!==$("edStart")) $("edStart").value=s.start||"";
+      if(document.activeElement!==$("edEnd")) $("edEnd").value=s.end||"";
+      if(document.activeElement!==$("edNote")) $("edNote").value=s.note||"";
+      $("edCalc").innerHTML=st==="cancelled"?"呢更已取消，唔會計入收入同時數。":`<b class="num">${hrs(s.hours)}</b> 小時 × ${money(cfg.rate||0)} = <b class="num">${money(s.hours*(cfg.rate||0))}</b>`+(st==="reported"?"（未確認）":st==="tentative"?"（自己預計，未報更）":"");
+    } else $("edCalc").textContent="今日未有記錄。揀一個狀態，會用排第一嘅更份加入，之後可以轉做其他更份。";
+  }
+
+  function renderPay(){
+    const tb=$("payBody"); tb.textContent=""; const r=cfg.rate||0;
+    for(let k=-1;k<=3;k++){
+      const pay=addMonth(now.getFullYear(),now.getMonth(),k); const src=addMonth(pay.y,pay.m,-cfg.lag);
+      const a=monthAgg(src.y,src.m); const h=a.doneH+a.planH;
+      const tr=document.createElement("tr"); if(k===0) tr.className="now";
+      const tag=a.planD?`<span class="tag">有 ${a.planD} 更未確認</span>`:(a.doneD?`<span class="tag ok">已確認</span>`:"");
+      tr.innerHTML=`<td>${pay.y!==now.getFullYear()?pay.y+"年":""}${pay.m+1}月</td><td>${src.m+1}月更</td><td class="r num">${hrs(a.doneH)}${a.planH?` <span style="color:var(--muted)">+${hrs(a.planH)}</span>`:""}</td><td class="r num">${money(a.doneH*r)}${a.planH?`<br><span style="color:var(--muted);font-size:.78rem">最多 ${money(h*r)}</span>`:""}</td><td>${tag}</td>`;
+      tb.appendChild(tr);
+    }
+    $("payNote").textContent=cfg.lag===0?"設定咗即月出糧。":`返更月份之後 ${cfg.lag} 個月出糧。金額只計確認有更；灰色數字係連埋已報更同預計安排嘅最多金額。`;
+  }
+
+  function renderOverview(){
+    const y=view.y; $("ovTitle").textContent=`${y}年時數類別`;
+    const p=y+"-"; const agg={};
+    for(const k in shifts){ if(!k.startsWith(p)) continue; const s=shifts[k]; if(ST(s)==="cancelled") continue;
+      const id=findCat(s.cat)?s.cat:"_none";
+      const a=agg[id]=agg[id]||{d:0,p:0,n:0,types:{}}; a.n++;
+      const tn=(findType(s.type)||{}).name||"自訂"; a.types[tn]=(a.types[tn]||0)+1;
+      if(ST(s)==="confirmed") a.d+=s.hours||0; else a.p+=s.hours||0; }
+    const list=clone(cfg.cats); if(agg._none) list.push({id:"_none",name:"未分類",req:0});
+    const box=$("ov"); box.textContent="";
+    list.forEach(c=>{
+      const a=agg[c.id]||{d:0,p:0,n:0,types:{}}; const req=+c.req||0;
+      const scale=Math.max(req,a.d+a.p,1);
+      const it=document.createElement("div"); it.className="ov-item"+(req&&a.d>=req?" met":"");
+      const top=document.createElement("div"); top.className="ov-top";
+      const nm=document.createElement("span"); nm.className="ov-name"; nm.textContent=c.name||"（未命名）";
+      const fig=document.createElement("span"); fig.className="ov-fig num";
+      fig.innerHTML=`<b>${hrs(a.d)}</b>${a.p?` + ${hrs(a.p)} 未確認`:""}${req?` / ${hrs(req)}`:""} 小時 · ${a.n} 更`;
+      top.append(nm,fig);
+      const bar=document.createElement("div"); bar.className="bar";
+      bar.innerHTML=`<i class="bp" style="width:${Math.min(100,(a.d+a.p)/scale*100)}%"></i><i class="bd" style="width:${Math.min(100,a.d/scale*100)}%"></i>`;
+      const msg=document.createElement("div"); msg.className="ov-msg";
+      if(req){ const left=req-a.d;
+        if(left<=0){msg.classList.add("ok");msg.textContent="已達標";}
+        else if(left<=a.p){msg.textContent=`尚欠 ${hrs(left)} 小時，已報同預計嘅更全部確認就夠`;}
+        else {msg.classList.add("short");msg.textContent=`尚欠 ${hrs(left)} 小時，連已報同預計嘅更都仲差 ${hrs(left-a.p)} 小時`;}
+      } else msg.textContent="冇最低要求";
+      const tl=Object.entries(a.types).map(([k,v])=>`${k} ${v}`).join("、");
+      if(tl) msg.textContent+=` · ${tl}`;
+      it.append(top,bar,msg); box.appendChild(it);
+    });
+  }
+
+  // ---------- settings lists ----------
+  function mkInput(type,id,val,lab,cls,on){
+    const l=document.createElement("label"); if(cls) l.className=cls; l.textContent=lab;
+    const i=document.createElement("input"); i.type=type; i.id=id; i.value=val==null?"":val;
+    if(type==="number"){i.min="0";i.step="1";i.inputMode="decimal";}
+    i.addEventListener("input",()=>on(i.value)); l.appendChild(i); return l;
+  }
+  function mkDel(label,disabled,on){
+    const x=document.createElement("button"); x.className="x"; x.type="button"; x.textContent="刪除";
+    x.setAttribute("aria-label",label); x.disabled=disabled; x.addEventListener("click",on); return x;
+  }
+  function renderTypeList(){
+    const box=$("typeList"); box.textContent="";
+    cfg.types.forEach((t,i)=>{
+      const row=document.createElement("div"); row.className="type-row";
+      const l1=mkInput("text","tyN_"+t.id,t.name,"更份名稱","nm",v=>{t.name=v;render();saveCfg();});
+      const l2=mkInput("time","tyS_"+t.id,t.start,"上班","",v=>{t.start=v;saveCfg();});
+      const l3=mkInput("time","tyE_"+t.id,t.end,"落班","",v=>{t.end=v;saveCfg();});
+      const l4=document.createElement("label"); l4.className="ct"; l4.textContent="計入時數類別";
+      const sc=document.createElement("select"); sc.id="tyC_"+t.id;
+      cfg.cats.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name||"（未命名）";sc.appendChild(o);});
+      sc.value=findCat(t.cat)?t.cat:(cfg.cats[0]||{}).id||"";
+      sc.addEventListener("change",()=>{t.cat=sc.value;saveCfg();}); l4.appendChild(sc);
+      const x=mkDel("刪除更份 "+t.name,cfg.types.length<=1,()=>{cfg.types.splice(i,1);renderTypeList();render();saveCfg();});
+      row.append(l1,l2,l3,l4,x); box.appendChild(row);
+    });
+  }
+  function renderCatList(){
+    const box=$("catList"); box.textContent="";
+    cfg.cats.forEach((c,i)=>{
+      const row=document.createElement("div"); row.className="cat-row";
+      const l1=mkInput("text","catN_"+c.id,c.name,"類別名稱","",v=>{c.name=v;render();renderTypeListLabels();saveCfg();});
+      const l2=mkInput("number","catR_"+c.id,c.req||0,"每年要求(小時)","",v=>{c.req=parseFloat(v)||0;render();saveCfg();});
+      const x=mkDel("刪除時數類別 "+c.name,cfg.cats.length<=1,()=>{
+        cfg.cats.splice(i,1); const fb=(cfg.cats[0]||{}).id||"";
+        cfg.types.forEach(t=>{if(t.cat===c.id) t.cat=fb;});
+        renderCatList(); renderTypeList(); render(); saveCfg();});
+      row.append(l1,l2,x); box.appendChild(row);
+    });
+  }
+  function renderTypeListLabels(){
+    cfg.types.forEach(t=>{const sc=$("tyC_"+t.id); if(!sc) return;
+      [...sc.options].forEach(o=>{const c=findCat(o.value); if(c) o.textContent=c.name||"（未命名）";});});
+  }
+  $("typeAdd").addEventListener("click",()=>{const id="t"+Date.now().toString(36);
+    cfg.types.push({id,name:"新更份",start:"09:00",end:"17:00",cat:(cfg.cats[0]||{}).id||""});
+    renderTypeList(); render(); saveCfg(); const el=$("tyN_"+id); if(el){el.focus();el.select();}});
+  $("catAdd").addEventListener("click",()=>{const id="k"+Date.now().toString(36);
+    cfg.cats.push({id,name:"新類別",req:0}); renderCatList(); renderTypeList(); render(); saveCfg();
+    const el=$("catN_"+id); if(el){el.focus();el.select();}});
+
+  // ---------- persistence ----------
+  function setStatus(t,err){const e=$("status");e.textContent=t;e.classList.toggle("err",!!err);}
+  const pending={};
+  async function saveShift(ds){
+    if(!dbOk) return; const ref=db.collection("shifts").doc(ds);
+    if(pending[ds]){pending[ds].again=true;return;} pending[ds]={again:false};
+    try{ do{ pending[ds].again=false; const s=shifts[ds]; if(s) await ref.set({...s}); else await ref.delete(); }while(pending[ds].again); setStatus("已儲存"); }
+    catch(e){ setStatus("儲存唔到："+(e&&e.code||"錯誤")+"，請重新載入再試。",true); }
+    finally{ delete pending[ds]; }
+  }
+  let cfgTimer=null;
+  function saveCfg(){ clearTimeout(cfgTimer); cfgTimer=setTimeout(async()=>{ if(!dbOk) return;
+    try{ await db.doc("config/settings").set(JSON.parse(JSON.stringify(cfg))); setStatus("設定已儲存"); }catch(e){ setStatus("設定儲存唔到",true);} },500); }
+
+  function applyType(s,typeId){
+    const t=findType(typeId); if(!t) return s;
+    s.type=t.id; s.start=t.start; s.end=t.end; s.cat=findCat(t.cat)?t.cat:s.cat; return s;
+  }
+  function setState(st){
+    if(!sel) return;
+    if(st==="none"){ delete shifts[sel]; }
+    else { let s=shifts[sel]?{...shifts[sel]}:applyType({date:sel,note:"",start:"09:00",end:"17:00",cat:""},(cfg.types[0]||{}).id);
+      s.status=st; s.hours=hoursOf(s.start,s.end); shifts[sel]=s; }
+    render(); saveShift(sel);
+  }
+  $("stTent").onclick=()=>setState("tentative"); $("stRep").onclick=()=>setState("reported"); $("stConf").onclick=()=>setState("confirmed"); $("stCanc").onclick=()=>setState("cancelled");
+  $("edClear").onclick=()=>setState("none");
+
+  let edTimer=null;
+  function commitEdit(s){ s.hours=hoursOf(s.start,s.end); shifts[sel]=s; render();
+    const ds=sel; clearTimeout(edTimer); edTimer=setTimeout(()=>saveShift(ds),400); }
+  function editField(){ if(!sel||!shifts[sel]) return; const s={...shifts[sel]};
+    s.start=$("edStart").value; s.end=$("edEnd").value; s.note=$("edNote").value; commitEdit(s); }
+  ["edStart","edEnd","edNote"].forEach(id=>$(id).addEventListener("input",editField));
+  $("edType").addEventListener("change",()=>{ if(!sel||!shifts[sel]) return;
+    const s=applyType({...shifts[sel]},$("edType").value);
+    $("edType").blur(); commitEdit(s); });
+  $("edCat").addEventListener("change",()=>{ if(!sel||!shifts[sel]) return;
+    const s={...shifts[sel]}; if($("edCat").value) s.cat=$("edCat").value; commitEdit(s); });
+
+  function fillCfg(){ $("cfRate").value=cfg.rate||""; $("cfLag").value=cfg.lag; renderTypeList(); renderCatList(); }
+  $("cfRate").addEventListener("input",e=>{cfg.rate=parseFloat(e.target.value)||0;render();saveCfg();});
+  $("cfLag").addEventListener("input",e=>{const v=parseInt(e.target.value,10);cfg.lag=isNaN(v)?1:Math.max(0,Math.min(3,v));render();saveCfg();});
+
+  $("prev").onclick=()=>{view=addMonth(view.y,view.m,-1);render();};
+  $("next").onclick=()=>{view=addMonth(view.y,view.m,1);render();};
+  $("todayBtn").onclick=()=>{view={y:now.getFullYear(),m:now.getMonth()};sel=todayStr;render();};
+
+  fillCfg(); render();
+
+  // ---------- Firebase ----------
+  const firebaseConfig={
+    apiKey:"AIzaSyB5oQ0OUnYPPrtNsqptJ6LG1frYqXYv2zE",
+    authDomain:"aux-roster.firebaseapp.com",
+    projectId:"aux-roster",
+    storageBucket:"aux-roster.firebasestorage.app",
+    messagingSenderId:"322924565113",
+    appId:"1:322924565113:web:c3245ec162df4821a17aa8"
+  };
+  if(!window.firebase){ $("gateMsg").textContent="載入唔到登入元件，請檢查網絡之後重新整理。"; $("signIn").hidden=true; return; }
+  firebase.initializeApp(firebaseConfig);
+  const auth=firebase.auth(); const fs=firebase.firestore();
+  fs.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({prompt:"select_account"});
+  $("signIn").onclick=async()=>{
+    $("gateMsg").textContent="登入緊…";
+    try{ await auth.signInWithPopup(provider); }
+    catch(e){
+      if(e&&(e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment")){ try{ await auth.signInWithRedirect(provider); return; }catch(e2){ e=e2; } }
+      $("gateMsg").textContent="登入唔到（"+(e&&e.code||"錯誤")+"），請再試一次。";
+    }
+  };
+  $("signOut").onclick=async()=>{ await auth.signOut(); location.reload(); };
+  auth.getRedirectResult().catch(e=>{ $("gateMsg").textContent="登入唔到（"+(e&&e.code||"錯誤")+"）"; });
+
+  let started=false;
+  auth.onAuthStateChanged(user=>{
+    if(!user){ $("gate").hidden=false; $("app").hidden=true; return; }
+    $("gate").hidden=true; $("app").hidden=false; $("who").textContent=user.email||"";
+    if(started) return; started=true;
+    const base=fs.collection("users").doc(user.uid);
+    db={ collection:n=>base.collection(n), doc:p=>{const [c,d]=p.split("/");return base.collection(c).doc(d);} };
+    dbOk=true;
+    const timer=setTimeout(()=>setStatus("暫時連唔到資料庫，顯示內容可能唔係最新。",true),10000);
+    db.doc("config/settings").onSnapshot({includeMetadataChanges:true},snap=>{
+      if(snap.exists){ const d=snap.data();
+        const cats=Array.isArray(d.cats)&&d.cats.length&&d.cats.every(c=>!("start" in c))?d.cats:DEFAULT_CATS;
+        const types=Array.isArray(d.types)&&d.types.length?d.types:DEFAULT_TYPES;
+        cfg={rate:+d.rate||0,lag:d.lag==null?1:+d.lag,cats:clone(cats),types:clone(types)};
+        if(!$("setDetails").contains(document.activeElement)) fillCfg(); render(); }
+      else if(!snap.metadata.fromCache && !cfg.rate){ $("setDetails").open=true; }
+    },e=>{ setStatus(e.code==="permission-denied"?"呢個 Google 帳戶冇權限用呢份更表。":"讀取唔到設定（"+e.code+"）",true); });
+    db.collection("shifts").onSnapshot({includeMetadataChanges:true},snap=>{
+      if(!snap.metadata.fromCache){ clearTimeout(timer); setStatus(snap.empty?"未有任何更份：撳一日開始記錄。":"已同步"); }
+      else setStatus("離線模式：改動會喺返到網絡時同步。");
+      const next={}; snap.docs.forEach(d=>{ next[d.id]=(pending[d.id]&&shifts[d.id])?shifts[d.id]:{...d.data()}; });
+      for(const k in pending){ if(!shifts[k]) delete next[k]; else next[k]=shifts[k]; }
+      shifts=next; render();
+    },e=>{ clearTimeout(timer); setStatus(e.code==="permission-denied"?"呢個 Google 帳戶冇權限用呢份更表。":"讀取唔到更份資料（"+e.code+"）",true); });
+  });
+
+  if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+})();
+</script>
+</body>
+</html>

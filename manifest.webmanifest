@@ -1,0 +1,16 @@
+{
+  "name": "輔警更表",
+  "short_name": "輔警更表",
+  "description": "輔警兼職更表、時數同出糧預計",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f4f7",
+  "theme_color": "#1f3a6e",
+  "lang": "zh-HK",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
