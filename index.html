@@ -420,15 +420,16 @@ body{margin:0;min-height:100vh}
     const box=$("typeList"); box.textContent="";
     cfg.types.forEach((t,i)=>{
       const row=document.createElement("div"); row.className="type-row";
-      const l1=mkInput("text","tyN_"+t.id,t.name,"更份名稱","nm",v=>{t.name=v;render();saveCfg();});
-      const l2=mkInput("time","tyS_"+t.id,t.start,"上班","",v=>{t.start=v;saveCfg();});
-      const l3=mkInput("time","tyE_"+t.id,t.end,"落班","",v=>{t.end=v;saveCfg();});
+      const T=()=>findType(t.id)||t;
+      const l1=mkInput("text","tyN_"+t.id,t.name,"更份名稱","nm",v=>{T().name=v;render();saveCfg();});
+      const l2=mkInput("time","tyS_"+t.id,t.start,"上班","",v=>{T().start=v;saveCfg();});
+      const l3=mkInput("time","tyE_"+t.id,t.end,"落班","",v=>{T().end=v;saveCfg();});
       const l4=document.createElement("label"); l4.className="ct"; l4.textContent="計入時數類別";
       const sc=document.createElement("select"); sc.id="tyC_"+t.id;
       cfg.cats.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name||"（未命名）";sc.appendChild(o);});
       sc.value=findCat(t.cat)?t.cat:(cfg.cats[0]||{}).id||"";
-      sc.addEventListener("change",()=>{t.cat=sc.value;saveCfg();}); l4.appendChild(sc);
-      const x=mkDel("刪除更份 "+t.name,cfg.types.length<=1,()=>{cfg.types.splice(i,1);renderTypeList();render();saveCfg();});
+      sc.addEventListener("change",()=>{T().cat=sc.value;saveCfg();}); l4.appendChild(sc);
+      const x=mkDel("刪除更份 "+t.name,cfg.types.length<=1,()=>{cfg.types=cfg.types.filter(x=>x.id!==t.id);renderTypeList();render();saveCfg();});
       row.append(l1,l2,l3,l4,x); box.appendChild(row);
     });
   }
@@ -436,10 +437,11 @@ body{margin:0;min-height:100vh}
     const box=$("catList"); box.textContent="";
     cfg.cats.forEach((c,i)=>{
       const row=document.createElement("div"); row.className="cat-row";
-      const l1=mkInput("text","catN_"+c.id,c.name,"類別名稱","",v=>{c.name=v;render();renderTypeListLabels();saveCfg();});
-      const l2=mkInput("number","catR_"+c.id,c.req||0,"每年要求(小時)","",v=>{c.req=parseFloat(v)||0;render();saveCfg();});
+      const C=()=>findCat(c.id)||c;
+      const l1=mkInput("text","catN_"+c.id,c.name,"類別名稱","",v=>{C().name=v;render();renderTypeListLabels();saveCfg();});
+      const l2=mkInput("number","catR_"+c.id,c.req||0,"每年要求(小時)","",v=>{C().req=parseFloat(v)||0;render();saveCfg();});
       const x=mkDel("刪除時數類別 "+c.name,cfg.cats.length<=1,()=>{
-        cfg.cats.splice(i,1); const fb=(cfg.cats[0]||{}).id||"";
+        cfg.cats=cfg.cats.filter(x=>x.id!==c.id); const fb=(cfg.cats[0]||{}).id||"";
         cfg.types.forEach(t=>{if(t.cat===c.id) t.cat=fb;});
         renderCatList(); renderTypeList(); render(); saveCfg();});
       row.append(l1,l2,x); box.appendChild(row);
@@ -466,9 +468,13 @@ body{margin:0;min-height:100vh}
     catch(e){ setStatus("儲存唔到："+(e&&e.code||"錯誤")+"，請重新載入再試。",true); }
     finally{ delete pending[ds]; }
   }
-  let cfgTimer=null;
-  function saveCfg(){ clearTimeout(cfgTimer); cfgTimer=setTimeout(async()=>{ if(!dbOk) return;
-    try{ await db.doc("config/settings").set(JSON.parse(JSON.stringify(cfg))); setStatus("設定已儲存"); }catch(e){ setStatus("設定儲存唔到",true);} },500); }
+  let cfgTimer=null, cfgSaving=0, cfgLocalAt=0;
+  function saveCfg(){ cfgLocalAt=Date.now(); clearTimeout(cfgTimer); cfgTimer=setTimeout(async()=>{ cfgTimer=null; if(!dbOk) return;
+    cfgSaving++; cfgLocalAt=Date.now();
+    try{ await db.doc("config/settings").set(JSON.parse(JSON.stringify(cfg))); setStatus("設定已儲存"); }catch(e){ setStatus("設定儲存唔到",true);}
+    finally{ cfgSaving--; cfgLocalAt=Date.now(); } },600); }
+  // 本機啱啱改過設定（或者仲儲存緊）時，唔好用雲端傳返嚟嘅舊資料蓋過
+  const cfgBusy=snap=>cfgTimer||cfgSaving>0||(snap&&snap.metadata&&snap.metadata.hasPendingWrites)||Date.now()-cfgLocalAt<2500;
 
   function applyType(s,typeId){
     const t=findType(typeId); if(!t) return s;
@@ -542,6 +548,7 @@ body{margin:0;min-height:100vh}
     dbOk=true;
     const timer=setTimeout(()=>setStatus("暫時連唔到資料庫，顯示內容可能唔係最新。",true),10000);
     db.doc("config/settings").onSnapshot({includeMetadataChanges:true},snap=>{
+      if(cfgBusy(snap)) return;
       if(snap.exists){ const d=snap.data();
         const cats=Array.isArray(d.cats)&&d.cats.length&&d.cats.every(c=>!("start" in c))?d.cats:DEFAULT_CATS;
         const types=Array.isArray(d.types)&&d.types.length?d.types:DEFAULT_TYPES;

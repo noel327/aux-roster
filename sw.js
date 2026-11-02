@@ -1,5 +1,5 @@
 // 輔警更表 service worker: cache the app shell so it opens offline.
-const CACHE = "aux-roster-v1";
+const CACHE = "aux-roster-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js",
